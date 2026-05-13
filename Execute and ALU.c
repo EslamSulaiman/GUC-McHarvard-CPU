@@ -1,10 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-
-int8_t registers [64];
-int8_t dataMemory[2048];
-uint8_t SREG = 0;
+#include "processor.h"
 
 typedef struct{
     int opcode;
@@ -32,13 +29,13 @@ int execute( DecodedInstruction inst , uint16_t *PC){
         
        case 0: { // ADD
 
-            int8_t value1 = registers[inst.r1];
-            int8_t value2 = registers[inst.r2];
+            int8_t value1 = readRegister(inst.r1);
+            int8_t value2 = readRegister(inst.r2);
 
             int resultFull = ((uint8_t)value1) + ((uint8_t)value2);
             int8_t result = value1 + value2;
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setCarryFlag(resultFull);
             setOverflowAddFlag(value1 , value2 , result);
@@ -47,7 +44,7 @@ int execute( DecodedInstruction inst , uint16_t *PC){
             setSignFlag();
 
             printf("EX: ADD R%d R%d\n", inst.r1, inst.r2);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
@@ -55,12 +52,12 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 1: { // SUB
 
-            int8_t value1 = registers[inst.r1];
-            int8_t value2 = registers[inst.r2];
+            int8_t value1 = readRegister(inst.r1);
+            int8_t value2 = readRegister(inst.r2);
 
             int8_t result = value1 - value2;
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setOverflowSubFlag(value1 , value2 , result);
             setZeroFlag(result);
@@ -68,7 +65,7 @@ int execute( DecodedInstruction inst , uint16_t *PC){
             setSignFlag();
 
             printf("EX: SUB R%d R%d\n", inst.r1, inst.r2);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
@@ -77,25 +74,25 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 2 : { //Multiply R1 R2
 
-            int8_t result = registers[inst.r1] * registers[inst.r2];
+            int8_t result = readRegister(inst.r1) * readRegister(inst.r2);
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
             printf("EX: MUL R%d R%d\n", inst.r1, inst.r2);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
         }
 
         case 3 : //LDI r1 Imm
-            registers[inst.r1] = inst.immediate;
+            writeRegister(inst.r1, inst.immediate);
 
             printf("EX: LDI R%d %d\n", inst.r1, inst.immediate);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
 
             break;
 
@@ -103,7 +100,7 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
             printf("EX: BEQZ R%d %d\n", inst.r1, inst.immediate);
 
-            if(registers[inst.r1] == 0){
+            if(readRegister(inst.r1) == 0){
                 *PC = inst.pc + 1 + inst.immediate;
 
                 printf("Branch taken. PC changed to %d\n", *PC);
@@ -121,15 +118,15 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 5 : { //AND R1 R2
 
-            int8_t result = registers[inst.r1] & registers[inst.r2];
+            int8_t result = readRegister(inst.r1) & readRegister(inst.r2);
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
             printf("EX: AND R%d R%d\n", inst.r1, inst.r2);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
@@ -137,23 +134,23 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 6 : { //OR R1 R2
 
-            int8_t result = registers[inst.r1] | registers[inst.r2];
+            int8_t result = readRegister(inst.r1) | readRegister(inst.r2);
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
             printf("EX: OR R%d R%d\n", inst.r1, inst.r2);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
         }
 
         case 7 : {//JR R1 R2
-            uint16_t high = ((uint8_t)registers[inst.r1]) << 8;
-            uint16_t low = (uint8_t)registers[inst.r2];
+            uint16_t high = ((uint8_t)readRegister(inst.r1)) << 8;
+            uint16_t low = (uint8_t)readRegister(inst.r2);
 
             *PC = high | low;
 
@@ -168,15 +165,15 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 8 : { //SAL R1 imm
 
-            int8_t result = registers[inst.r1] << inst.immediate;
+            int8_t result = readRegister(inst.r1) << inst.immediate;
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
             printf("EX: SAL R%d %d\n", inst.r1, inst.immediate);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
@@ -184,33 +181,33 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
         case 9 : { //SAR R1 imm
 
-            int8_t result = registers[inst.r1] >> inst.immediate;
+            int8_t result = readRegister(inst.r1) >> inst.immediate;
 
-            registers[inst.r1] = result;
+            writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
             printf("EX: SAR R%d %d\n", inst.r1, inst.immediate);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
         }
 
         case 10 : //LB R1 Address
-            registers[inst.r1] = dataMemory[inst.immediate];
+            writeRegister(inst.r1, readDataMemory(inst.immediate));
 
             printf("EX: LB R%d %d\n", inst.r1, inst.immediate);
-            printf("R%d changed to %d\n", inst.r1, registers[inst.r1]);
+            printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
 
             break;
 
         case 11 : //SB R1 Address
-            dataMemory[inst.immediate] = registers[inst.r1];
+            writeDataMemory(inst.immediate, readRegister(inst.r1));
 
             printf("EX: SB R%d %d\n", inst.r1, inst.immediate);
-            printf("Data Memory[%d] changed to %d\n", inst.immediate, dataMemory[inst.immediate]);
+            printf("Data Memory[%d] changed to %d\n", inst.immediate, readDataMemory(inst.immediate));
 
             break;
 
@@ -225,66 +222,66 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
 void setZeroFlag(int8_t result){
     if(result == 0){
-        SREG = SREG | (1 << 0);
+        setSREG(getSREG() | (1 << 0));
     }
     else{
-        SREG = SREG & ~(1 << 0);
+        setSREG(getSREG() & ~(1 << 0));
     }
 }
 
 void setNegativeFlag(int8_t result){
 
     if(result < 0){
-        SREG = SREG | (1 << 2);
+        setSREG(getSREG() | (1 << 2));
     }
     else{
-        SREG = SREG & ~(1 << 2);
+        setSREG(getSREG() & ~(1 << 2));
     }
 }
 
 void setCarryFlag(int result){
 
     if((result & (1 << 8)) != 0){
-        SREG = SREG | (1 << 4);
+        setSREG(getSREG() | (1 << 4));
     }
     else{
-        SREG = SREG & ~(1 << 4);
+        setSREG(getSREG() & ~(1 << 4));
     }
 }
 
 void setOverflowAddFlag(int8_t value1 , int8_t value2 , int8_t result){
 
     if((value1 > 0 && value2 > 0 && result < 0) || (value1 < 0 && value2 < 0 && result >= 0)){
-        SREG = SREG | (1 << 3);
+        setSREG(getSREG() | (1 << 3));
     }
     else{
-        SREG = SREG & ~(1 << 3);
+        setSREG(getSREG() & ~(1 << 3));
     }
 }
 
 void setOverflowSubFlag(int8_t value1 , int8_t value2 , int8_t result){
 
     if((value1 > 0 && value2 < 0 && result < 0) || (value1 < 0 && value2 > 0 && result >= 0)){
-        SREG = SREG | (1 << 3);
+        setSREG(getSREG() | (1 << 3));
     }
     else{
-        SREG = SREG & ~(1 << 3);
+        setSREG(getSREG() & ~(1 << 3));
     }
 }
 
 void setSignFlag(){
 
-    int negative = (SREG >> 2) & 1;
-    int overflow = (SREG >> 3) & 1;
+    int negative = (getSREG() >> 2) & 1;
+    int overflow = (getSREG() >> 3) & 1;
 
     if((negative ^ overflow) == 1){
-        SREG = SREG | (1 << 1);
+        setSREG(getSREG() | (1 << 1));
     }
     else{
-        SREG = SREG & ~(1 << 1);
+        setSREG(getSREG() & ~(1 << 1));
     }
 }
 
 void printSREG(){
-    printf("SREG changed to %d\n", SREG);
+    printf("SREG changed to %d\n", getSREG());
 }
