@@ -2,15 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "processor.h"
-
-typedef struct{
-    int opcode;
-    int r1;
-    int r2;
-    int immediate;
-    int pc;
-    int valid;
-} DecodedInstruction;
+#include "instruction.h"
 
 void setZeroFlag(int8_t result);
 void setNegativeFlag(int8_t result);
@@ -105,8 +97,6 @@ int execute( DecodedInstruction inst , uint16_t *PC){
 
                 printf("Branch taken. PC changed to %d\n", *PC);
 
-                //PERSON 5 flush IF and ID here (what happens to pipeline after we jump)
-
                 return 1;
             }
             else{
@@ -157,38 +147,44 @@ int execute( DecodedInstruction inst , uint16_t *PC){
             printf("EX: JR R%d R%d\n", inst.r1, inst.r2);
             printf("Jump taken. PC changed to %d\n", *PC);
 
-            //PERSON 5 flush IF and ID here (what happens to pipeline after we jump)
-            
             return 1;
         }
 
 
-        case 8 : { //SAL R1 imm
+        case 8 : { // SCL R1 imm  (circular left shift)
 
-            int8_t result = readRegister(inst.r1) << inst.immediate;
+            uint8_t val   = (uint8_t)readRegister(inst.r1);
+            int     shift = inst.immediate % 8;
+            int8_t  result = (shift == 0)
+                ? (int8_t)val
+                : (int8_t)((val << shift) | (val >> (8 - shift)));
 
             writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
-            printf("EX: SAL R%d %d\n", inst.r1, inst.immediate);
+            printf("EX: SCL R%d %d\n", inst.r1, inst.immediate);
             printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
             break;
         }
 
-        case 9 : { //SAR R1 imm
+        case 9 : { // SCR R1 imm  (circular right shift)
 
-            int8_t result = readRegister(inst.r1) >> inst.immediate;
+            uint8_t val   = (uint8_t)readRegister(inst.r1);
+            int     shift = inst.immediate % 8;
+            int8_t  result = (shift == 0)
+                ? (int8_t)val
+                : (int8_t)((val >> shift) | (val << (8 - shift)));
 
             writeRegister(inst.r1, result);
 
             setZeroFlag(result);
             setNegativeFlag(result);
 
-            printf("EX: SAR R%d %d\n", inst.r1, inst.immediate);
+            printf("EX: SCR R%d %d\n", inst.r1, inst.immediate);
             printf("R%d changed to %d\n", inst.r1, readRegister(inst.r1));
             printSREG();
 
